@@ -28,11 +28,11 @@ Here are the original and experiment versions:
 
 ## Sanity checks
 <img src='images/sanity_checks.gif'>
-The first step is to verify that the data has been collected correctly. This can be done by verifying whether the following metrics are comparable across the groups and time.
-- number of users in each group
-- number of events in each group
-- number of cookies in each group
-- click-through-probability from funnel step 1 to step 2
+The first step is to verify that the data has been collected correctly. This can be done by verifying whether the following metrics are comparable across the groups and time:
+- Number of users in each group
+- Number of events in each group
+- Number of cookies in each group
+- Click-through-probability from funnel step 1 to step 2
 
 
 
@@ -58,8 +58,8 @@ Typical user segments include:
 
 ## Sign test
 <img src='images/sign_test.gif'>
-Cross-checking the result with other methods such as sign test can tell us whether the trend of change we observed (increase or decrease) was evident in the daily data, further validate whether the change is consistent at which the control and treatment performed across days.
-To conduct a sign test on the conversions, we first compute daily conversion probability for each group, then count how many days the conversion was higher in the treatment group than the control and this will be the number of successes for the statistical test to calculate the two tailed P-value.
+Cross-checking the result with other methods such as sign test can tell us whether the trend of change we observed (increase or decrease) was evident in the daily data, further validate whether the change is consistent at which the control and treatment performed across days.<br>
+To conduct a sign test on the conversions, we first compute daily conversion probability for each group, then count how many days the conversion was higher in the treatment group than the control and this will be the number of successes for the statistical test to calculate the two tailed P-value.<br>
 We can choose from a binomial test, t-test or z-test depending on the sample size.
 
 
