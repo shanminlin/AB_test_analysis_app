@@ -53,7 +53,7 @@ Typical user segments include:
 
 
 ## Sign test
-<img src='images/sign_test.gif'>
+<img src='images/sign_test_pic.png'>
 Cross-checking the result with other methods such as sign test can tell us whether the trend of change we observed (increase or decrease) was evident in the daily data, further validate whether the change is consistent at which the control and treatment performed across days.<br>
 To conduct a sign test on the conversions, we first compute daily conversion probability for each group, then count how many days the conversion was higher in the treatment group than the control and this will be the number of successes for the statistical test to calculate the two tailed P-value.<br>
 We can choose from a binomial test, t-test or z-test depending on the sample size.
