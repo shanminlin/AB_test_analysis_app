@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 @st.cache
 def load_data():
     """Loads and formats data and formats."""
-    df = pd.read_csv('../data/clean_data.csv')
+    df = pd.read_csv('data/clean_data.csv')
     df['event_time'] = pd.to_datetime(df['event_time'])
     df['experiment_group'] = df['experiment_group'].map({'control': 'control', 
                                                          'experiment_1': 'variation 1', 
@@ -142,6 +142,48 @@ def two_proportions_ztest(a_conversion, a_size, b_conversion, b_size):
     pvalue = one_side * 2
     return pvalue
 
+def two_proportions_conf_interval(a_conversion, a_size, b_conversion, b_size, significance):
+    """Computes the confidence interval for differences between two proportions.
+    
+    Parameters
+    ----------
+    a_conversion : int
+        Number of conversions in sample a
+        
+    b_conversion : int
+        Number of conversions in sample b
+        
+    a_size : int
+        Number of observations in sample a
+    
+    b_size : int
+        Number of observations in sample b
+    
+    significance: float
+        alpha for significance test
+        
+    Returns
+    -------
+    lower_ci : float
+        lower bound of the confidence interval
+        
+    upper_ci : float
+        upper bound of the confidence interval
+    """
+    a_prob = a_conversion / a_size
+    b_prob = b_conversion / b_size
+    
+    variance = a_prob * (1 - a_prob) / a_size + b_prob * (1 - b_prob) / b_size # unpooled
+    sd = np.sqrt(variance)
+    
+    confidence = 1 - significance
+    zcritical = stats.norm(loc=0, scale=1).ppf(confidence + significance/2)
+
+    diff = abs(a_prob - b_prob)
+    lower_ci = diff - zcritical * sd
+    upper_ci = diff + zcritical * sd
+
+    return lower_ci, upper_ci
 
 def compute_and_plot(df):
     """
@@ -236,9 +278,9 @@ def compute_and_plot(df):
         col3.plotly_chart(fig_group)
 
         
-def compute_statistics(df):
+def compute_statistics_two_proportions(df):
     """
-    Computes statistics for conversion changes, conducts sign test on day-by-day breakdown data.
+    Computes statistics for conversion changes.
     
     Parameters
     ----------
@@ -248,21 +290,16 @@ def compute_statistics(df):
     # format GUI
     col1, col2, col3 = st.beta_columns((8, 1, 8))
     col1.subheader('Significance test for conversions')
-    col3.subheader('Sign test for daily conversions')
 
     # select paramters for statistical test for conversion changes
     col1, col2, col3, col4, col5 = st.beta_columns((4, 4, 1, 4, 4))
-    selected_test_significance = col1.selectbox('Select statistical test', ('two-tailed t test', 'two-tailed z test'), key='1')
-    selected_alpha_significance = col2.selectbox('Select alpha', ('0.05', '0.01'), key='1')
-
-    selected_test_sign = col4.selectbox('Select statistical test', ('two-tailed t test', 'two-tailed z test', 'binomial test'), index=1)
-    selected_alpha_sign = col5.selectbox('Select alpha', ('0.05', '0.01'), index=0)
-
-    # compute statistics for conversion changes
-    col1, col2, col3 = st.beta_columns((8, 1, 8))
+    test_significance = col1.selectbox('Select statistical test', ('two-tailed t test', 'two-tailed z test'), key='1')
+    alpha_significance = col2.selectbox('Select alpha', ('0.05', '0.01'), key='1')
+    alpha_significance = float(alpha_significance)
     
-    if selected_test_significance == 'two-tailed t test':
-        col1.text('Sample size is large (n>50), use z test.')
+    # compute statistics for conversion changes    
+    if test_significance == 'two-tailed t test':
+        st.text('Sample size is large (n>50), use z test.')
         
     else:
         ztest_result = pd.DataFrame()
@@ -274,16 +311,38 @@ def compute_statistics(df):
         a_conversion = ztest_result.loc['control', 'conversions']
         
         # conduct z test
+        ztest_result['lower bound'], ztest_result['upper bound'] = ztest_result.apply(lambda x: 
+                                                                                      two_proportions_conf_interval(a_conversion,
+                                                                                                                    a_size,
+                                                                                                                    x['conversions'],
+                                                                                                                    x['visits'],
+                                                                                                                    alpha_significance), 
+                                                                                      axis=1,
+                                                                                      result_type='expand').T.values
+       
+        ztest_result['lower bound (%)'] = ztest_result.apply(lambda x: x['lower bound'] / ztest_result.loc['control', 'conversion probability'] * 100, axis=1)
+        ztest_result['upper bound (%)'] = ztest_result.apply(lambda x: x['upper bound'] / ztest_result.loc['control', 'conversion probability'] * 100, axis=1)
         ztest_result['p-value'] = ztest_result.apply(lambda x: two_proportions_ztest(a_conversion, a_size, x['conversions'], x['visits']), axis=1)
-        ztest_result['Significance level'] = [float(selected_alpha_significance)]*4
+        ztest_result['Significance level'] = [alpha_significance]*4
         ztest_result['Significance'] = ztest_result.apply(lambda x: x['p-value'] < x['Significance level'], axis=1)
         ztest_result['Achieved significance'] = ztest_result.apply(lambda x: 'Yes' if x['Significance']==1 else 'No', axis=1)
-        ztest_result.drop(['Significance level', 'Significance'], axis=1, inplace=True)
+        ztest_result.drop(['Significance level', 'Significance', 'lower bound', 'upper bound'], axis=1, inplace=True)
         
         # show result
-        col1.table(ztest_result)
+        st.table(ztest_result)
+        
+    
+def compute_sign_test(df):
+    """conducts sign test on day-by-day breakdown data."""
 
-
+    st.subheader('Sign test for daily conversions')
+    
+    # select paramters for statistical test for conversion changes
+    col1, col2, col3, col4, col5 = st.beta_columns((4, 4, 1, 4, 4))
+    test_sign = col1.selectbox('Select statistical test', ('two-tailed t test', 'two-tailed z test', 'binomial test'), index=1)
+    alpha_sign = col2.selectbox('Select alpha', ('0.05', '0.01'), index=0)
+    alpha_sign = float(alpha_sign)
+    
     # compute statistics for sign test for daily conversions
     df = df.set_index('event_time')
     conversion_daily = df.groupby([pd.Grouper(freq='1D'), 'experiment']).apply(conversion_probability)
@@ -294,10 +353,11 @@ def compute_statistics(df):
 
     n = len(conversion_daily)
     p = 0.5 # null hypothesis
-
-    if selected_test_sign == 'two-tailed t test' or selected_test_sign == 'two-tailed z test':
+    
+    col1, col2, col3 = st.beta_columns((8, 1, 8))
+    if test_sign == 'two-tailed t test' or test_sign == 'two-tailed z test':
         if n * p < 10 or n * (1 - p) < 10:
-            col3.write('Sample size too small. Use binomial test.')
+            col1.write('Sample size too small. Use binomial test.')
     else:
         var1_success = sum(conversion_daily['var1_success'])
         var2_success = sum(conversion_daily['var2_success'])
@@ -308,21 +368,22 @@ def compute_statistics(df):
         
         # conduct binomial test
         sign_test_result['p-value'] = sign_test_result.apply(lambda x: compute_binomial_pvalue(x['Total days'], x['Successes']), axis=1)
-        sign_test_result['Significance level'] = [np.round(float(selected_alpha_sign), 2)]*3
+        sign_test_result['Significance level'] = [alpha_sign]*3
         sign_test_result['Significance'] = sign_test_result.apply(lambda x: x['p-value'] < x['Significance level'], axis=1)
         sign_test_result['Achieved significance'] = sign_test_result.apply(lambda x: 'Yes' if x['Significance']==1 else 'No', axis=1)
         sign_test_result.drop(['Significance level', 'Significance'], axis=1, inplace=True)
         
         # show result
-        col3.table(sign_test_result)
-    
+        col1.table(sign_test_result)
+        
 def main():
     st.set_page_config(layout="wide")
     st.title('A/B Test Report')
     df = load_data()     
     create_sidebars(df)
     compute_and_plot(df)
-    compute_statistics(df)   
+    compute_statistics_two_proportions(df)
+    compute_sign_test(df)
     
 #------------------------------------------------------#
 
