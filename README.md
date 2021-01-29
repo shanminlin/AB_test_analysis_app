@@ -38,7 +38,7 @@ This can be done by verifying whether the following metrics are comparable acros
 
 
 ## Significance test on differences in conversion probability
-<img src='images/conversion_test.png'>
+<img src='images/conversion_test_pic.png'>
 We can use either t-test or z-test as approximations to the binomial distribution of conversion probability based on sample size.
 
 
